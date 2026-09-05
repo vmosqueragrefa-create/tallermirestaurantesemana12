@@ -6,35 +6,52 @@ from modelos.venta import Venta
 class Restaurante:
     """Administra productos, usuarios y ventas."""
 
-    def __init__(self) -> None:
-        self.productos: list[Producto] = []
-        self.usuarios: list[Usuario] = []
-        self.ventas: list[Venta] = []
+    def __init__(
+        self,
+        productos_iniciales: list[Producto] | None = None,
+        usuarios_iniciales: list[Usuario] | None = None,
+        ventas_iniciales: list[Venta] | None = None,
+    ) -> None:
+        # MEJORA SEMANA 11: el servicio administra tres colecciones relacionadas.
+        # Semana 11: tres colecciones principales del sistema.
+        # Estas listas permiten explicar recorrido, busqueda y relaciones.
+        self._productos: list[Producto] = (
+            productos_iniciales.copy()
+            if productos_iniciales
+            else []
+        )
 
-        # Índices auxiliares
-        self.productos_por_codigo = {}
-        self.usuarios_por_id = {}
-        self.ventas_por_usuario = {}
+        self._usuarios: list[Usuario] = (
+            usuarios_iniciales.copy()
+            if usuarios_iniciales
+            else []
+        )
+
+        self._ventas: list[Venta] = (
+            ventas_iniciales.copy()
+            if ventas_iniciales
+            else []
+        )
 
     # ==========================
     # PRODUCTOS
     # ==========================
 
     def registrar_producto(self, producto: Producto) -> bool:
-
-        if producto.codigo in self.productos_por_codigo:
+        if self.buscar_producto(producto.codigo) is not None:
             return False
 
-        self.productos.append(producto)
-        self.productos_por_codigo[producto.codigo] = producto
-
+        self._productos.append(producto)
         return True
 
     def buscar_producto(self, codigo: str) -> Producto | None:
+        codigo = codigo.strip()
 
-        codigo = codigo.strip().upper()
+        for producto in self._productos:
+            if producto.codigo == codigo:
+                return producto
 
-        return self.productos_por_codigo.get(codigo)
+        return None
 
     def actualizar_producto(
         self,
@@ -42,9 +59,8 @@ class Restaurante:
         nombre: str,
         categoria: str,
         precio: float,
-        stock: int
+        stock: int,
     ) -> bool:
-
         producto = self.buscar_producto(codigo)
 
         if producto is None:
@@ -58,45 +74,70 @@ class Restaurante:
         return True
 
     def eliminar_producto(self, codigo: str) -> bool:
-
         producto = self.buscar_producto(codigo)
 
         if producto is None:
             return False
 
-        self.productos.remove(producto)
-        del self.productos_por_codigo[producto.codigo]
-
+        self._productos.remove(producto)
         return True
 
     def listar_productos(self) -> list[Producto]:
-        return self.productos
+        return self._productos.copy()
+
+    def contar_productos(self) -> int:
+        return len(self._productos)
 
     # ==========================
     # USUARIOS
     # ==========================
 
     def registrar_usuario(self, usuario: Usuario) -> bool:
-
-        if usuario.identificacion in self.usuarios_por_id:
+        if self.buscar_usuario(usuario.identificacion) is not None:
             return False
 
-        self.usuarios.append(usuario)
-        self.usuarios_por_id[usuario.identificacion] = usuario
-
+        self._usuarios.append(usuario)
         return True
 
     def buscar_usuario(
         self,
-        identificacion: str
+        identificacion: str,
     ) -> Usuario | None:
-
         identificacion = identificacion.strip()
 
-        return self.usuarios_por_id.get(identificacion)
+        for usuario in self._usuarios:
+            if usuario.identificacion == identificacion:
+                return usuario
+
+        return None
+
+    def actualizar_usuario(
+        self,
+        identificacion: str,
+        nuevo_nombre: str,
+    ) -> bool:
+        usuario = self.buscar_usuario(identificacion)
+
+        if usuario is None:
+            return False
+
+        usuario.nombre = nuevo_nombre
+        return True
+
+    def eliminar_usuario(
+        self,
+        identificacion: str,
+    ) -> bool:
+        usuario = self.buscar_usuario(identificacion)
+
+        if usuario is None:
+            return False
+
+        self._usuarios.remove(usuario)
+        return True
 
     def listar_usuarios(self) -> list[Usuario]:
-        return self.usuarios
+        return self._usuarios.copy()
 
     # ==========================
     # VENTAS
@@ -106,9 +147,10 @@ class Restaurante:
         self,
         codigo_producto: str,
         identificacion_usuario: str,
-        cantidad: int
+        cantidad: int = 1,
     ) -> bool:
-
+        # MEJORA SEMANA 11: nueva operacion para vender
+        # y relacionar Usuario -> Venta -> Producto.
         usuario = self.buscar_usuario(
             identificacion_usuario
         )
@@ -117,10 +159,8 @@ class Restaurante:
             codigo_producto
         )
 
-        if usuario is None:
-            return False
-
-        if producto is None:
+        # Reglas de negocio antes de crear la relacion.
+        if usuario is None or producto is None:
             return False
 
         if cantidad <= 0:
@@ -129,32 +169,60 @@ class Restaurante:
         if producto.stock < cantidad:
             return False
 
-        producto.vender(cantidad)
-
+        # Aqui se crea la relacion entre usuario y producto.
         venta = Venta(
             usuario.identificacion,
             producto.codigo,
             cantidad
         )
 
-        self.ventas.append(venta)
+        self._ventas.append(venta)
 
-        if usuario.identificacion not in self.ventas_por_usuario:
-            self.ventas_por_usuario[usuario.identificacion] = []
-
-        self.ventas_por_usuario[usuario.identificacion].append(venta)
+        # El producto modifica su estado interno:
+        # el stock disminuye.
+        producto.vender(cantidad)
 
         return True
 
     def listar_ventas(self) -> list[Venta]:
-        return self.ventas
+        return self._ventas.copy()
 
     def consultar_ventas_usuario(
         self,
-        identificacion: str
+        identificacion_usuario: str,
     ) -> list[Venta]:
+        # MEJORA SEMANA 11: consulta las ventas relacionadas
+        # con un usuario.
+        # Se filtra la coleccion mediante la identificacion.
+        identificacion_usuario = (
+            identificacion_usuario.strip()
+        )
 
-        return self.ventas_por_usuario.get(
-            identificacion,
-            []
+        ventas_usuario: list[Venta] = []
+
+        for venta in self._ventas:
+            if venta.id_usuario == identificacion_usuario:
+                ventas_usuario.append(venta)
+
+        return ventas_usuario
+
+    # ==========================
+    # CATEGORIAS
+    # ==========================
+
+    def obtener_categorias_unicas(self) -> set[str]:
+        categorias: set[str] = set()
+
+        for producto in self._productos:
+            categorias.add(producto.categoria)
+
+        return categorias
+
+    def existe_categoria(
+        self,
+        categoria: str,
+    ) -> bool:
+        return (
+            categoria.strip()
+            in self.obtener_categorias_unicas()
         )

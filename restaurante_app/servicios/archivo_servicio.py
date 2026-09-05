@@ -175,30 +175,31 @@ class ArchivoServicio:
     def guardar_ventas(
         self,
         ventas: list[Venta]
-    ) -> None:
-
+    ) -> bool:
+ 
         datos = []
-
+ 
         for venta in ventas:
             datos.append(venta.to_dict())
-
+ 
         try:
-
             with self.archivo_ventas.open(
                 "w",
                 encoding="utf-8"
             ) as archivo:
-
+ 
                 json.dump(
                     datos,
                     archivo,
                     indent=4,
                     ensure_ascii=False
                 )
-
+ 
+            return True
+ 
         except PermissionError:
-
             print("No existen permisos para guardar ventas.")
+            return False    
 
     def cargar_ventas(self) -> list[Venta]:
 
